@@ -409,3 +409,203 @@ body {
 
 /* ── Voice tag in user bubble ──────────────────────────────── */
 .voice-tag { font-size: 12px; opacity: .8; }
+
+/* ── AI response wrapper (text + video stacked) ─────────────── */
+.ai-response-wrap {
+  display: flex; flex-direction: column; gap: 10px;
+  max-width: 580px;
+}
+
+/* ── Video Solution Player ───────────────────────────────────── */
+.vs-player {
+  border-radius: 16px; overflow: hidden;
+  background: #07070e;
+  border: 1px solid rgba(124,107,255,.22);
+  box-shadow: 0 8px 40px rgba(0,0,0,.55), 0 0 0 1px rgba(124,107,255,.06);
+  animation: fadeUp .25s ease;
+}
+
+/* Header bar */
+.vs-header {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  background: rgba(255,255,255,.02);
+}
+.vs-header-badge {
+  width: 22px; height: 22px; border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; flex-shrink: 0;
+  box-shadow: 0 0 10px rgba(124,107,255,.4);
+}
+.vs-header-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: rgba(255,255,255,.55);
+}
+.vs-header-count {
+  margin-left: auto; font-size: 11px; color: rgba(255,255,255,.25);
+}
+
+/* Screen */
+.vs-screen {
+  position: relative; min-height: 265px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 30px 34px;
+  overflow: hidden;
+  background: #07070e;
+}
+/* Dot-grid background */
+.vs-grid {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: radial-gradient(rgba(255,255,255,.028) 1px, transparent 1px);
+  background-size: 26px 26px;
+}
+/* Ambient glow blobs */
+.vs-glow {
+  position: absolute; border-radius: 50%; pointer-events: none; filter: blur(60px);
+}
+.vs-glow-1 {
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(124,107,255,.14) 0%, transparent 70%);
+  top: -60px; left: -60px;
+}
+.vs-glow-2 {
+  width: 220px; height: 220px;
+  background: radial-gradient(circle, rgba(232,121,249,.08) 0%, transparent 70%);
+  bottom: -40px; right: -40px;
+}
+
+/* Slide — key-triggered re-mount animates on every slide change */
+.vs-slide {
+  width: 100%; max-width: 560px; position: relative; z-index: 1;
+  animation: vs-in .38s cubic-bezier(.25,.8,.35,1);
+}
+@keyframes vs-in {
+  from { opacity: 0; transform: translateY(18px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0)   scale(1); }
+}
+
+/* ── Slide: Intro ──── */
+.vs-intro {
+  text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px;
+}
+.vs-topic-tag {
+  display: inline-block; padding: 4px 14px; border-radius: 20px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.8px; text-transform: uppercase;
+  background: rgba(124,107,255,.12); color: var(--accent2);
+  border: 1px solid rgba(167,139,250,.25);
+}
+.vs-intro-problem {
+  font-size: clamp(16px, 3vw, 23px); font-weight: 700; color: rgba(255,255,255,.9);
+  line-height: 1.45; max-width: 500px;
+}
+
+/* ── Slide: Step ──── */
+.vs-step-slide { display: flex; flex-direction: column; gap: 14px; }
+.vs-step-head  { display: flex; align-items: center; gap: 12px; }
+.vs-step-num-badge {
+  min-width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  color: #fff; font-size: 14px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 18px rgba(124,107,255,.5);
+}
+.vs-step-title  { font-size: 17px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
+.vs-step-formula {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 13.5px; color: var(--accent2);
+  background: rgba(124,107,255,.1); border: 1px solid rgba(124,107,255,.22);
+  padding: 10px 14px; border-radius: 9px; white-space: pre-wrap;
+}
+.vs-step-work  { font-size: 14px; color: rgba(255,255,255,.7); line-height: 1.7; }
+.vs-step-result { display: flex; align-items: center; gap: 10px; }
+.vs-arrow      { color: rgba(255,255,255,.3); font-size: 14px; }
+.vs-result-val {
+  font-size: 20px; font-weight: 700;
+  background: linear-gradient(135deg, #34d399, #6ee7b7);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.vs-step-why {
+  font-size: 13px; color: #fbbf24; line-height: 1.55;
+  background: rgba(251,191,36,.07); border-radius: 8px; padding: 9px 12px;
+}
+
+/* ── Slide: Answer ──── */
+.vs-answer-slide {
+  text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px;
+}
+.vs-confetti { font-size: 18px; letter-spacing: 8px; opacity: .5; }
+.vs-ans-eyebrow {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 2.5px;
+  color: var(--accent); font-weight: 700;
+}
+.vs-ans-value {
+  font-size: clamp(26px, 5.5vw, 46px); font-weight: 900; letter-spacing: -.5px;
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 50%, #e879f9 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  white-space: pre-wrap; word-break: break-word; line-height: 1.2;
+}
+
+/* ── Slide: Tip ──── */
+.vs-tip-slide {
+  text-align: center; display: flex; flex-direction: column; align-items: center; gap: 13px;
+}
+.vs-tip-emoji  { font-size: 36px; }
+.vs-tip-content { font-size: 15px; color: rgba(255,255,255,.78); line-height: 1.65; max-width: 480px; }
+
+/* ── Controls ──── */
+.vs-controls {
+  background: #09090f; border-top: 1px solid rgba(255,255,255,.04);
+  padding: 11px 16px 14px;
+}
+.vs-bar-track {
+  height: 2.5px; background: rgba(255,255,255,.07); border-radius: 3px;
+  margin-bottom: 10px; overflow: hidden;
+}
+.vs-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  border-radius: 3px; transition: width .5s ease;
+}
+.vs-dots { display: flex; gap: 5px; justify-content: center; margin-bottom: 11px; flex-wrap: wrap; }
+.vs-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(255,255,255,.14); border: none; cursor: pointer;
+  transition: all .2s; padding: 0;
+}
+.vs-dot.active {
+  background: var(--accent); transform: scale(1.45);
+  box-shadow: 0 0 7px rgba(124,107,255,.8);
+}
+.vs-dot:hover:not(.active) { background: rgba(255,255,255,.35); }
+
+.vs-btns { display: flex; align-items: center; gap: 7px; }
+.vs-btn {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+  color: rgba(255,255,255,.6); cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .18s; font-family: inherit;
+}
+.vs-btn:hover:not(:disabled) { background: rgba(255,255,255,.12); color: #fff; border-color: rgba(255,255,255,.14); }
+.vs-btn:disabled { opacity: .22; cursor: not-allowed; }
+
+.vs-play-btn {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2)) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+  box-shadow: 0 2px 16px rgba(124,107,255,.45);
+  border-radius: 50% !important;
+}
+.vs-play-btn:hover:not(:disabled) {
+  box-shadow: 0 0 24px rgba(124,107,255,.65) !important;
+  transform: scale(1.08);
+}
+
+.vs-counter {
+  font-size: 12px; color: rgba(255,255,255,.25); margin-left: auto;
+  font-variant-numeric: tabular-nums; letter-spacing: .5px;
+}
+.vs-mute-btn.muted { color: var(--red) !important; border-color: rgba(248,113,113,.3) !important; }
