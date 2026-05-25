@@ -1,143 +1,195 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { processInput } from "./mathEngine";
 import "./App.css";
 
+// ─── Constants ───────────────────────────────────────────────────────
 const SUGGESTIONS = [
-  "sin(45) + cos(30)",
-  "(3^4 − 2^5) / sqrt(16)",
-  "log(1000) * 5!",
-  "C(10, 3)",
-  "gcd(48, 18)",
-  "17 tub sonmi",
-  "kosinus teoremasi",
-  "hosila qoidalari",
+  "sin²x + cos²x ni isbotla",
+  "∫x²·eˣ dx ni hisoblang",
+  "x³ - 6x² + 11x - 6 = 0 ni yeching",
+  "C(10,3) va P(5,2) ni hisoblang",
+  "Limit: lim(x→0) sin(x)/x",
+  "Matritsalar: 2x2 teskari matritsa",
+  "Hosila qoidalari",
+  "Standart og'ish formulasi",
 ];
 
-// ─── Result renderers ───────────────────────────────────────────────
-function Steps({ steps }) {
-  if (!steps?.length) return null;
+const RE_EXPLAIN_TRIGGERS =
+  /\b(tushunmadim|tushunmadi|boshqatan|soddaroq|explain|simpler|simple|qayta|yana\s*bir|aniqroq|soddalar?oq|t\.u\.s\.h\.u\.n\.m\.a\.d\.i\.m)\b/i;
+
+// ─── API layer ───────────────────────────────────────────────────────
+async function apiSolve(question, mode = "normal") {
+  const r = await fetch("/api/solve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, mode }),
+  });
+  const json = await r.json();
+  if (!json.ok) throw new Error(json.error || "Server xatosi");
+  return json.data;
+}
+
+async function apiSolveImage(file, question, mode = "normal") {
+  const fd = new FormData();
+  fd.append("image", file);
+  fd.append("question", question || "");
+  fd.append("mode", mode);
+  const r = await fetch("/api/solve-image", { method: "POST", body: fd });
+  const json = await r.json();
+  if (!json.ok) throw new Error(json.error || "Server xatosi");
+  return json.data;
+}
+
+// ─── Local math (simple arithmetic only) ────────────────────────────
+function tryLocal(text) {
+  if (!/^[0-9+\-*/^%().\s]+$/.test(text.trim())) return null;
+  const { processInput: pi } = { processInput };
+  const res = processInput(text);
+  if (!res || res.type !== "math") return null;
+  return res;
+}
+
+// ─── Claude response renderer ────────────────────────────────────────
+function StepCard({ step, simple }) {
   return (
-    <div className="steps-wrap">
-      <div className="steps-title">Qadamlar</div>
-      {steps.map((s, i) => (
-        <div key={i} className="step-row">
-          <span className="step-n">{i + 1}</span>
-          <div className="step-body">
-            {s.label && <span className="step-label">{s.label}</span>}
-            <span className="step-expr">{s.expr}</span>
-            <span className="step-eq">= {s.result}</span>
-          </div>
+    <div className="step-card">
+      <div className="step-card-head">
+        <span className="step-num">{step.n}</span>
+        <span className="step-title">{step.title}</span>
+      </div>
+      {step.formula && (
+        <div className="step-formula">{step.formula}</div>
+      )}
+      <div className="step-work">{step.work}</div>
+      {step.result && (
+        <div className="step-result">
+          <span className="arrow">→</span> {step.result}
         </div>
-      ))}
+      )}
+      {simple && step.why && (
+        <div className="step-why">
+          <span className="why-icon">💡</span> {step.why}
+        </div>
+      )}
     </div>
   );
 }
 
-function ResultBlock({ data }) {
-  if (data.type === "math") {
+function ClaudeResult({ data, mode, onReExplain, onDetailedExplain }) {
+  if (!data) return <span className="err-text">Javob olishda xato yuz berdi.</span>;
+
+  if (data.raw) {
     return (
-      <>
-        <div className="res-tag">Natija</div>
-        <Steps steps={data.steps} />
-        <div className="res-expr">{data.expression}</div>
-        <div className="res-val">= {data.result}</div>
-        {data.complexity === "complex" && (
-          <div className="badge">Murakkab ifoda</div>
+      <div className="raw-answer">
+        <div className="res-tag">Javob</div>
+        <p>{data.answer}</p>
+        {onReExplain && mode !== "simple" && (
+          <button className="reexplain-btn" onClick={onReExplain}>
+            🔄 Soddaroq tushuntir
+          </button>
         )}
-      </>
+      </div>
     );
   }
 
-  if (data.type === "formula") {
-    return (
-      <>
-        <div className="res-tag">Formula</div>
-        <div className="formula-box">{data.formula}</div>
-        <div className="formula-desc">{data.desc}</div>
-      </>
-    );
-  }
-
-  if (data.type === "quadratic") {
-    const eq = `${data.a}x² ${data.b >= 0 ? "+" : ""}${data.b}x ${data.c >= 0 ? "+" : ""}${data.c} = 0`;
-    return (
-      <>
-        <div className="res-tag">Kvadrat Tenglama</div>
-        <div className="formula-box">{eq}</div>
-        <Steps steps={[
-          { label: "Diskriminant", expr: `D = ${data.b}² − 4·${data.a}·${data.c}`, result: String(data.D) },
-        ]} />
-        {data.roots.length === 0 && (
-          <div className="no-roots">D &lt; 0 — haqiqiy ildizlar yo'q</div>
-        )}
-        {data.roots.map((r, i) => (
-          <div key={i} className="root-row">
-            <span className="root-label">x{data.roots.length > 1 ? i + 1 : ""}</span>
-            <span className="res-val">= {r}</span>
-          </div>
-        ))}
-      </>
-    );
-  }
-
-  if (data.type === "prime") {
-    return (
-      <>
-        <div className="res-tag">{data.n} — Tub Son Tekshiruvi</div>
-        <div className={`prime-badge ${data.isPrime ? "is-prime" : "not-prime"}`}>
-          {data.isPrime ? "✓ TUB SON" : "✗ TUB EMAS"}
-        </div>
-        {!data.isPrime && (
-          <div className="formula-desc">
-            {data.n} = {data.factorStr}
-          </div>
-        )}
-      </>
-    );
-  }
-
-  if (data.type === "factorization") {
-    return (
-      <>
-        <div className="res-tag">Tub Ko'paytuvchilarga Ajratish</div>
-        <div className="res-expr">{data.n}</div>
-        <div className="res-val">= {data.factorStr}</div>
-      </>
-    );
-  }
-
-  if (data.type === "combinatorics") {
-    return (
-      <>
-        <div className="res-tag">{data.comboType === "C" ? "Kombinatsiya" : "Permutatsiya"}</div>
-        <div className="formula-box">{data.formula}</div>
-      </>
-    );
-  }
-
-  if (data.type === "special") {
-    return (
-      <>
-        <div className="res-tag">{data.title}</div>
-        <Steps steps={data.steps} />
-        <div className="res-val">= {data.result}</div>
-      </>
-    );
-  }
+  const isSimple = mode === "simple";
 
   return (
-    <span className="error-text">
-      Tushunmadim. Matematik ifoda, formula nomi yoki maxsus buyruq kiriting.
-    </span>
+    <div className="claude-result">
+      {data.topic && <div className="topic-badge">{data.topic}</div>}
+
+      {data.problem && (
+        <div className="problem-line">{data.problem}</div>
+      )}
+
+      {isSimple && data.simple_idea && (
+        <div className="simple-idea-box">
+          <span className="idea-label">Asosiy g'oya</span>
+          <p>{data.simple_idea}</p>
+        </div>
+      )}
+
+      {data.steps?.length > 0 && (
+        <div className="steps-section">
+          <div className="steps-header">
+            <span className="steps-title-text">
+              {isSimple ? "Sodda qadamlar" : "Yechim qadamlari"}
+            </span>
+            <span className="steps-count">{data.steps.length} qadam</span>
+          </div>
+          {data.steps.map((s) => (
+            <StepCard key={s.n} step={s} simple={isSimple} />
+          ))}
+        </div>
+      )}
+
+      {data.answer && (
+        <div className="final-answer-box">
+          <span className="ans-label">Yakuniy Javob</span>
+          <div className="ans-val">{data.answer}</div>
+        </div>
+      )}
+
+      {(data.tip || data.remember) && (
+        <div className="tip-box">
+          <span className="tip-icon">📌</span>
+          <span>{data.tip || data.remember}</span>
+        </div>
+      )}
+
+      <div className="action-row">
+        {!isSimple && (
+          <button className="reexplain-btn" onClick={onReExplain}>
+            🔄 Soddaroq tushuntir
+          </button>
+        )}
+        {isSimple && (
+          <div className="simple-badge">✓ Soddalashtirilgan rejim</div>
+        )}
+      </div>
+    </div>
   );
 }
 
-// ─── Message ────────────────────────────────────────────────────────
-function Message({ msg }) {
+function LocalResult({ data, onDetailedExplain }) {
+  return (
+    <div className="local-result">
+      <div className="res-tag">Tez hisob</div>
+      {data.steps?.length > 0 && (
+        <div className="local-steps">
+          {data.steps.map((s, i) => (
+            <div key={i} className="local-step-row">
+              <span className="ls-label">{s.label}</span>
+              <span className="ls-expr">{s.expr}</span>
+              <span className="ls-eq">= {s.result}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="local-answer">
+        <span className="res-expr">{data.expression}</span>
+        <span className="res-val">= {data.result}</span>
+      </div>
+      <button className="explain-btn" onClick={onDetailedExplain}>
+        ✨ AI bilan batafsil tushuntir
+      </button>
+    </div>
+  );
+}
+
+// ─── Message ─────────────────────────────────────────────────────────
+function Message({ msg, onReExplain, onDetailedExplain }) {
   if (msg.role === "user") {
     return (
       <div className="msg-row user-row">
-        <div className="bubble user-bubble">{msg.text}</div>
+        <div className="user-content">
+          {msg.image && (
+            <div className="user-img-wrap">
+              <img src={msg.image} alt="yuklangan" className="user-img" />
+            </div>
+          )}
+          {msg.text && <div className="bubble user-bubble">{msg.text}</div>}
+        </div>
       </div>
     );
   }
@@ -146,57 +198,178 @@ function Message({ msg }) {
     <div className="msg-row ai-row">
       <div className="ai-avatar">∑</div>
       <div className="bubble ai-bubble">
-        {msg.data ? <ResultBlock data={msg.data} /> : (
-          <span className="error-text">
-            Tushunmadim. Masalan: <code>sin(45)+cos(30)</code> yoki{" "}
-            <code>gcd(48,18)</code>
-          </span>
+        {msg.type === "claude" && (
+          <ClaudeResult
+            data={msg.data}
+            mode={msg.mode}
+            onReExplain={() => onReExplain(msg)}
+            onDetailedExplain={() => onDetailedExplain(msg)}
+          />
+        )}
+        {msg.type === "local" && (
+          <LocalResult
+            data={msg.data}
+            onDetailedExplain={() => onDetailedExplain(msg)}
+          />
+        )}
+        {msg.type === "error" && (
+          <span className="err-text">⚠️ {msg.text}</span>
         )}
       </div>
     </div>
   );
 }
 
-// ─── App ────────────────────────────────────────────────────────────
+// ─── App ─────────────────────────────────────────────────────────────
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
+  const [pendingImg, setPendingImg] = useState(null); // {file, preview}
   const [thinking, setThinking] = useState(false);
+  const [thinkingText, setThinkingText] = useState("Yechilmoqda");
   const bottomRef = useRef(null);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, thinking]);
 
-  function handleSend(text) {
-    const val = (text !== undefined ? text : input).trim();
-    if (!val) return;
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", text: val }]);
+  // ── Core API caller ─────────────────────────────────────────────
+  const callAPI = useCallback(async (question, mode, imageFile = null) => {
     setThinking(true);
-    setTimeout(() => {
-      const data = processInput(val);
-      setMessages((prev) => [...prev, { role: "ai", data }]);
+    setThinkingText(imageFile ? "Rasm o'rganilmoqda" : "Yechilmoqda");
+    try {
+      let data;
+      if (imageFile) {
+        data = await apiSolveImage(imageFile, question, mode);
+      } else {
+        data = await apiSolve(question, mode);
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "ai",
+          type: "claude",
+          data,
+          mode,
+          srcQuestion: question,
+          srcFile: imageFile,
+        },
+      ]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", type: "error", text: e.message },
+      ]);
+    } finally {
       setThinking(false);
-    }, 500);
+    }
+  }, []);
+
+  // ── Send ────────────────────────────────────────────────────────
+  async function handleSend(text) {
+    const val = (text !== undefined ? text : input).trim();
+    if (!val && !pendingImg) return;
+
+    const imgSnapshot = pendingImg;
+    setInput("");
+    setPendingImg(null);
+
+    // Detect "tushunmadim" → re-explain last Claude message
+    if (!imgSnapshot && RE_EXPLAIN_TRIGGERS.test(val)) {
+      const last = [...messages]
+        .reverse()
+        .find((m) => m.role === "ai" && m.type === "claude");
+      if (last) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: val },
+        ]);
+        await callAPI(last.srcQuestion, "simple", last.srcFile);
+        return;
+      }
+    }
+
+    // Add user message
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "user",
+        text: val,
+        image: imgSnapshot?.preview || null,
+      },
+    ]);
+
+    if (imgSnapshot) {
+      await callAPI(val, "normal", imgSnapshot.file);
+      return;
+    }
+
+    // Try local first (pure arithmetic only)
+    const local = tryLocal(val);
+    if (local) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "ai", type: "local", data: local, srcQuestion: val },
+      ]);
+      return;
+    }
+
+    // Everything else → Claude
+    await callAPI(val, "normal");
+  }
+
+  // ── Re-explain (simple mode) ────────────────────────────────────
+  function handleReExplain(msg) {
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: "Soddaroq tushuntir" },
+    ]);
+    callAPI(msg.srcQuestion, "simple", msg.srcFile);
+  }
+
+  // ── Detailed explain (from local result) ─────────────────────────
+  function handleDetailedExplain(msg) {
+    const q = msg.srcQuestion || msg.data?.expression;
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: `${q} — batafsil tushuntir` },
+    ]);
+    callAPI(q, "normal");
+  }
+
+  // ── Image select ────────────────────────────────────────────────
+  function handleImageSelect(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = (ev) =>
+      setPendingImg({ file, preview: ev.target.result });
+    reader.readAsDataURL(file);
   }
 
   function handleKey(e) {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
   }
 
   const isEmpty = messages.length === 0;
 
   return (
     <div className="app">
+      {/* Header */}
       <header className="header">
         <div className="logo">
           <span className="logo-icon">∑</span>
           <span className="logo-text">MathAI</span>
         </div>
-        <span className="header-sub">Matematik AI Agent</span>
+        <span className="header-tag">Matematik AI Agent</span>
       </header>
 
+      {/* Main */}
       <main className="main">
         {isEmpty && (
           <div className="welcome">
@@ -204,7 +377,8 @@ export default function App() {
             <div className="welcome-avatar">∑</div>
             <h1 className="welcome-title">MathAI</h1>
             <p className="welcome-sub">
-              Oddiy arifmetikadan trigonometriya, integral, statistika va qadamba-qadam yechimlargacha
+              Rasm yuklang yoki yozing — har qanday matematik masalani
+              qadamba-qadam yechamiz. Tushunmadingizmi? "Soddaroq tushuntir" deng.
             </p>
             <div className="chips">
               {SUGGESTIONS.map((s) => (
@@ -213,17 +387,31 @@ export default function App() {
                 </button>
               ))}
             </div>
+            <div className="upload-hint">
+              <span className="hint-icon">📷</span>
+              Yoki matematik masala rasmini yuklang
+            </div>
           </div>
         )}
 
         {!isEmpty && (
           <div className="messages">
-            {messages.map((m, i) => <Message key={i} msg={m} />)}
+            {messages.map((m, i) => (
+              <Message
+                key={i}
+                msg={m}
+                onReExplain={handleReExplain}
+                onDetailedExplain={handleDetailedExplain}
+              />
+            ))}
             {thinking && (
               <div className="msg-row ai-row">
                 <div className="ai-avatar">∑</div>
                 <div className="bubble ai-bubble thinking-bubble">
-                  <span className="dot" /><span className="dot" /><span className="dot" />
+                  <span className="thinking-text">{thinkingText}</span>
+                  <span className="dot" />
+                  <span className="dot" />
+                  <span className="dot" />
                 </div>
               </div>
             )}
@@ -232,20 +420,57 @@ export default function App() {
         )}
       </main>
 
+      {/* Input area */}
       <div className="input-area">
+        {/* Image preview */}
+        {pendingImg && (
+          <div className="img-preview-wrap">
+            <img src={pendingImg.preview} alt="preview" className="img-preview" />
+            <button
+              className="img-remove"
+              onClick={() => setPendingImg(null)}
+              title="Rasmni olib tashlash"
+            >
+              ×
+            </button>
+            <span className="img-preview-label">Rasm yuklandi</span>
+          </div>
+        )}
+
         <div className="input-wrap">
+          {/* Image upload button */}
+          <button
+            className="img-btn"
+            onClick={() => fileRef.current?.click()}
+            title="Rasm yuklash"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.8" />
+              <circle cx="8.5" cy="8.5" r="1.5" fill="currentColor" />
+              <path d="M3 16l5-5 4 4 3-3 6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handleImageSelect}
+          />
+
           <input
             className="chat-input"
-            placeholder="sin(45)+cos(30),  gcd(48,18),  kvadrat tenglama..."
+            placeholder='Masala yozing, yoki rasm yuklang... "Tushunmadim" — sodda tushuntirish'
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
             autoFocus
           />
+
           <button
             className="send-btn"
             onClick={() => handleSend()}
-            disabled={!input.trim() || thinking}
+            disabled={(!input.trim() && !pendingImg) || thinking}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -253,7 +478,9 @@ export default function App() {
             </svg>
           </button>
         </div>
-        <p className="disclaimer">MathAI · Barcha hisob-kitoblar local bajariladi</p>
+        <p className="disclaimer">
+          MathAI · Rasm yuklang yoki "Tushunmadim" deb yozing
+        </p>
       </div>
     </div>
   );
