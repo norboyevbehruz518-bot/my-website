@@ -4,14 +4,14 @@ import "./App.css";
 
 // ─── Rotating quotes ─────────────────────────────────────────────────
 const QUOTES = [
-  { text: "Har qanday muammo —\nyashirin yechimdir", author: null },
-  { text: "Matematika — koinotning\nyashirin tili", author: "Galileo Galilei" },
-  { text: "Hosilalab o'ling,\nintegrallab qayting", author: null },
-  { text: "π dan keyin nima bor?\nHamma narsa.", author: null },
-  { text: "Raqamlar yolg'on gapirmaydi —\nular faqat javob kutishadi", author: null },
-  { text: "Euler, Newton va siz —\nbir savolda birlashadi", author: null },
-  { text: "Cheksizlik —\nboshlanishning boshqacha nomi", author: null },
-  { text: "eⁱᵖ + 1 = 0\nBarcha matematik go'zallik shunda", author: "Euler identiteti" },
+  { text: "Every problem has\na hidden solution", author: null },
+  { text: "Mathematics is the\nlanguage of the universe", author: "Galileo Galilei" },
+  { text: "Differentiate forward,\nintegrate back", author: null },
+  { text: "What lies beyond π?\nEverything.", author: null },
+  { text: "Numbers never lie —\nthey only wait for answers", author: null },
+  { text: "Euler, Newton, and you —\nunited by one question", author: null },
+  { text: "Infinity is just\nanother name for beginning", author: null },
+  { text: "eⁱᵖ + 1 = 0\nAll mathematical beauty in one line", author: "Euler's identity" },
 ];
 
 function RotatingQuote() {
@@ -38,8 +38,70 @@ function RotatingQuote() {
   );
 }
 
+// ─── Voice hook ──────────────────────────────────────────────────────
+function useVoice(onResult) {
+  const [recording, setRecording] = useState(false);
+  const [liveText, setLiveText] = useState("");
+  const recogRef = useRef(null);
+  const finalRef = useRef("");
+  const onResultRef = useRef(onResult);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
+
+  const isSupported =
+    typeof window !== "undefined" &&
+    !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+
+  const start = useCallback(() => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+
+    finalRef.current = "";
+    const recog = new SR();
+    recog.continuous = false;
+    recog.interimResults = true;
+    recog.lang = navigator.language || "en-US";
+
+    recog.onresult = (e) => {
+      let text = "";
+      for (const result of e.results) text += result[0].transcript;
+      finalRef.current = text;
+      setLiveText(text);
+    };
+
+    recog.onend = () => {
+      setRecording(false);
+      setLiveText("");
+      const text = finalRef.current.trim();
+      finalRef.current = "";
+      if (text) onResultRef.current(text, true);
+    };
+
+    recog.onerror = () => {
+      setRecording(false);
+      setLiveText("");
+      finalRef.current = "";
+    };
+
+    recog.start();
+    recogRef.current = recog;
+    setRecording(true);
+  }, []);
+
+  const stop = useCallback(() => {
+    recogRef.current?.stop();
+    recogRef.current = null;
+  }, []);
+
+  const toggle = useCallback(() => {
+    if (recording) stop();
+    else start();
+  }, [recording, start, stop]);
+
+  return { recording, liveText, toggle, isSupported };
+}
+
 const RE_EXPLAIN_TRIGGERS =
-  /\b(tushunmadim|tushunmadi|boshqatan|soddaroq|explain|simpler|simple|qayta|yana\s*bir|aniqroq|soddalar?oq|t\.u\.s\.h\.u\.n\.m\.a\.d\.i\.m)\b/i;
+  /\b(tushunmadim|tushunmadi|boshqatan|soddaroq|explain\s*(simpler|again|more\s*simply)?|simpler|simple|qayta|yana\s*bir|aniqroq|soddalar?oq|don'?t\s+understand|one\s+more\s+time|again)\b/i;
 
 // ─── API layer ───────────────────────────────────────────────────────
 async function apiSolve(question, mode = "normal") {
@@ -49,7 +111,7 @@ async function apiSolve(question, mode = "normal") {
     body: JSON.stringify({ question, mode }),
   });
   const json = await r.json();
-  if (!json.ok) throw new Error(json.error || "Server xatosi");
+  if (!json.ok) throw new Error(json.error || "Server error");
   return json.data;
 }
 
@@ -60,14 +122,13 @@ async function apiSolveImage(file, question, mode = "normal") {
   fd.append("mode", mode);
   const r = await fetch("/api/solve-image", { method: "POST", body: fd });
   const json = await r.json();
-  if (!json.ok) throw new Error(json.error || "Server xatosi");
+  if (!json.ok) throw new Error(json.error || "Server error");
   return json.data;
 }
 
-// ─── Local math (simple arithmetic only) ────────────────────────────
+// ─── Local math (pure arithmetic only) ──────────────────────────────
 function tryLocal(text) {
   if (!/^[0-9+\-*/^%().\s]+$/.test(text.trim())) return null;
-  const { processInput: pi } = { processInput };
   const res = processInput(text);
   if (!res || res.type !== "math") return null;
   return res;
@@ -81,9 +142,7 @@ function StepCard({ step, simple }) {
         <span className="step-num">{step.n}</span>
         <span className="step-title">{step.title}</span>
       </div>
-      {step.formula && (
-        <div className="step-formula">{step.formula}</div>
-      )}
+      {step.formula && <div className="step-formula">{step.formula}</div>}
       <div className="step-work">{step.work}</div>
       {step.result && (
         <div className="step-result">
@@ -99,17 +158,17 @@ function StepCard({ step, simple }) {
   );
 }
 
-function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }) {
-  if (!data) return <span className="err-text">Javob olishda xato yuz berdi.</span>;
+function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
+  if (!data) return <span className="err-text">Failed to get response.</span>;
 
   if (data.raw) {
     return (
       <div className="raw-answer">
-        <div className="res-tag">Javob</div>
+        <div className="res-tag">Answer</div>
         <p>{data.answer}</p>
         {onReExplain && mode !== "simple" && (
           <button className="reexplain-btn" onClick={onReExplain}>
-            🔄 Soddaroq tushuntir
+            🔄 Explain Simpler
           </button>
         )}
       </div>
@@ -121,14 +180,11 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
   return (
     <div className="claude-result">
       {data.topic && <div className="topic-badge">{data.topic}</div>}
-
-      {data.problem && (
-        <div className="problem-line">{data.problem}</div>
-      )}
+      {data.problem && <div className="problem-line">{data.problem}</div>}
 
       {isSimple && data.simple_idea && (
         <div className="simple-idea-box">
-          <span className="idea-label">Asosiy g'oya</span>
+          <span className="idea-label">Core Idea</span>
           <p>{data.simple_idea}</p>
         </div>
       )}
@@ -137,9 +193,9 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
         <div className="steps-section">
           <div className="steps-header">
             <span className="steps-title-text">
-              {isSimple ? "Sodda qadamlar" : "Yechim qadamlari"}
+              {isSimple ? "Simple Steps" : "Solution Steps"}
             </span>
-            <span className="steps-count">{data.steps.length} qadam</span>
+            <span className="steps-count">{data.steps.length} steps</span>
           </div>
           {data.steps.map((s) => (
             <StepCard key={s.n} step={s} simple={isSimple} />
@@ -149,7 +205,7 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
 
       {data.answer && (
         <div className="final-answer-box">
-          <span className="ans-label">Yakuniy Javob</span>
+          <span className="ans-label">Final Answer</span>
           <div className="ans-val">{data.answer}</div>
         </div>
       )}
@@ -161,10 +217,9 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
         </div>
       )}
 
-      {/* Follow-up suggestions */}
       {data.follow_ups?.length > 0 && (
         <div className="follow-ups">
-          <div className="fu-label">Keyingi qadam</div>
+          <div className="fu-label">Explore More</div>
           <div className="fu-chips">
             {data.follow_ups
               .filter((f) => typeof f === "string" && f.length > 5)
@@ -180,11 +235,11 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
       <div className="action-row">
         {!isSimple && (
           <button className="reexplain-btn" onClick={onReExplain}>
-            🔄 Soddaroq tushuntir
+            🔄 Explain Simpler
           </button>
         )}
         {isSimple && (
-          <div className="simple-badge">✓ Soddalashtirilgan rejim</div>
+          <div className="simple-badge">✓ Simplified mode</div>
         )}
       </div>
     </div>
@@ -194,7 +249,7 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }
 function LocalResult({ data, onDetailedExplain }) {
   return (
     <div className="local-result">
-      <div className="res-tag">Tez hisob</div>
+      <div className="res-tag">Quick Result</div>
       {data.steps?.length > 0 && (
         <div className="local-steps">
           {data.steps.map((s, i) => (
@@ -211,7 +266,7 @@ function LocalResult({ data, onDetailedExplain }) {
         <span className="res-val">= {data.result}</span>
       </div>
       <button className="explain-btn" onClick={onDetailedExplain}>
-        ✨ AI bilan batafsil tushuntir
+        ✨ Explain in detail with AI
       </button>
     </div>
   );
@@ -225,10 +280,15 @@ function Message({ msg, onReExplain, onDetailedExplain, onFollowUp }) {
         <div className="user-content">
           {msg.image && (
             <div className="user-img-wrap">
-              <img src={msg.image} alt="yuklangan" className="user-img" />
+              <img src={msg.image} alt="uploaded" className="user-img" />
             </div>
           )}
-          {msg.text && <div className="bubble user-bubble">{msg.text}</div>}
+          {msg.text && (
+            <div className="bubble user-bubble">
+              {msg.isVoice && <span className="voice-tag">🎙️ </span>}
+              {msg.text}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -265,9 +325,9 @@ function Message({ msg, onReExplain, onDetailedExplain, onFollowUp }) {
 export default function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [pendingImg, setPendingImg] = useState(null); // {file, preview}
+  const [pendingImg, setPendingImg] = useState(null);
   const [thinking, setThinking] = useState(false);
-  const [thinkingText, setThinkingText] = useState("Yechilmoqda");
+  const [thinkingText, setThinkingText] = useState("Solving");
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
 
@@ -278,7 +338,7 @@ export default function App() {
   // ── Core API caller ─────────────────────────────────────────────
   const callAPI = useCallback(async (question, mode, imageFile = null) => {
     setThinking(true);
-    setThinkingText(imageFile ? "Rasm o'rganilmoqda" : "Yechilmoqda");
+    setThinkingText(imageFile ? "Analyzing image" : "Solving");
     try {
       let data;
       if (imageFile) {
@@ -288,14 +348,7 @@ export default function App() {
       }
       setMessages((prev) => [
         ...prev,
-        {
-          role: "ai",
-          type: "claude",
-          data,
-          mode,
-          srcQuestion: question,
-          srcFile: imageFile,
-        },
+        { role: "ai", type: "claude", data, mode, srcQuestion: question, srcFile: imageFile },
       ]);
     } catch (e) {
       setMessages((prev) => [
@@ -308,7 +361,7 @@ export default function App() {
   }, []);
 
   // ── Send ────────────────────────────────────────────────────────
-  async function handleSend(text) {
+  async function handleSend(text, isVoice = false) {
     const val = (text !== undefined ? text : input).trim();
     if (!val && !pendingImg) return;
 
@@ -316,29 +369,20 @@ export default function App() {
     setInput("");
     setPendingImg(null);
 
-    // Detect "tushunmadim" → re-explain last Claude message
     if (!imgSnapshot && RE_EXPLAIN_TRIGGERS.test(val)) {
       const last = [...messages]
         .reverse()
         .find((m) => m.role === "ai" && m.type === "claude");
       if (last) {
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: val },
-        ]);
+        setMessages((prev) => [...prev, { role: "user", text: val, isVoice }]);
         await callAPI(last.srcQuestion, "simple", last.srcFile);
         return;
       }
     }
 
-    // Add user message
     setMessages((prev) => [
       ...prev,
-      {
-        role: "user",
-        text: val,
-        image: imgSnapshot?.preview || null,
-      },
+      { role: "user", text: val, image: imgSnapshot?.preview || null, isVoice },
     ]);
 
     if (imgSnapshot) {
@@ -346,7 +390,6 @@ export default function App() {
       return;
     }
 
-    // Try local first (pure arithmetic only)
     const local = tryLocal(val);
     if (local) {
       setMessages((prev) => [
@@ -356,42 +399,33 @@ export default function App() {
       return;
     }
 
-    // Everything else → Claude
     await callAPI(val, "normal");
   }
 
-  // ── Follow-up chip click ────────────────────────────────────────
+  const { recording, liveText, toggle: toggleVoice, isSupported: voiceSupported } =
+    useVoice(handleSend);
+
   function handleFollowUp(text) {
     handleSend(text);
   }
 
-  // ── Re-explain (simple mode) ────────────────────────────────────
   function handleReExplain(msg) {
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: "Soddaroq tushuntir" },
-    ]);
+    setMessages((prev) => [...prev, { role: "user", text: "Explain simpler" }]);
     callAPI(msg.srcQuestion, "simple", msg.srcFile);
   }
 
-  // ── Detailed explain (from local result) ─────────────────────────
   function handleDetailedExplain(msg) {
     const q = msg.srcQuestion || msg.data?.expression;
-    setMessages((prev) => [
-      ...prev,
-      { role: "user", text: `${q} — batafsil tushuntir` },
-    ]);
+    setMessages((prev) => [...prev, { role: "user", text: `${q} — explain in detail` }]);
     callAPI(q, "normal");
   }
 
-  // ── Image select ────────────────────────────────────────────────
   function handleImageSelect(e) {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
     const reader = new FileReader();
-    reader.onload = (ev) =>
-      setPendingImg({ file, preview: ev.target.result });
+    reader.onload = (ev) => setPendingImg({ file, preview: ev.target.result });
     reader.readAsDataURL(file);
   }
 
@@ -406,16 +440,14 @@ export default function App() {
 
   return (
     <div className="app">
-      {/* Header */}
       <header className="header">
         <div className="logo">
           <span className="logo-icon">∑</span>
           <span className="logo-text">MathAI</span>
         </div>
-        <span className="header-tag">Matematik AI Agent</span>
+        <span className="header-tag">Math AI Agent</span>
       </header>
 
-      {/* Main */}
       <main className="main">
         {isEmpty && (
           <div className="welcome">
@@ -424,7 +456,7 @@ export default function App() {
             <RotatingQuote />
             <div className="upload-hint">
               <span className="hint-icon">📷</span>
-              Masala rasmini yuklang yoki pastda yozing
+              Upload a math photo, speak, or type below
             </div>
           </div>
         )}
@@ -458,27 +490,35 @@ export default function App() {
 
       {/* Input area */}
       <div className="input-area">
-        {/* Image preview */}
         {pendingImg && (
           <div className="img-preview-wrap">
             <img src={pendingImg.preview} alt="preview" className="img-preview" />
             <button
               className="img-remove"
               onClick={() => setPendingImg(null)}
-              title="Rasmni olib tashlash"
+              title="Remove image"
             >
               ×
             </button>
-            <span className="img-preview-label">Rasm yuklandi</span>
+            <span className="img-preview-label">Image attached</span>
           </div>
         )}
 
-        <div className="input-wrap">
-          {/* Image upload button */}
+        {recording && (
+          <div className="recording-indicator">
+            <div className="waveform">
+              <span /><span /><span /><span /><span />
+            </div>
+            <span className="rec-label">Listening — speak your problem...</span>
+          </div>
+        )}
+
+        <div className={`input-wrap${recording ? " input-wrap--recording" : ""}`}>
           <button
             className="img-btn"
             onClick={() => fileRef.current?.click()}
-            title="Rasm yuklash"
+            title="Upload image"
+            disabled={recording}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
               <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.8" />
@@ -496,17 +536,40 @@ export default function App() {
 
           <input
             className="chat-input"
-            placeholder="Masalangizni yozing..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={handleKey}
+            placeholder={recording ? "" : "Ask anything in math..."}
+            value={recording ? liveText : input}
+            onChange={(e) => !recording && setInput(e.target.value)}
+            onKeyDown={!recording ? handleKey : undefined}
+            readOnly={recording}
             autoFocus
           />
+
+          {voiceSupported && (
+            <button
+              className={`mic-btn${recording ? " recording" : ""}`}
+              onClick={toggleVoice}
+              title={recording ? "Stop recording" : "Voice input"}
+              disabled={thinking}
+            >
+              {recording ? (
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+              ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect x="9" y="2" width="6" height="12" rx="3" stroke="currentColor" strokeWidth="2" />
+                  <path d="M5 10a7 7 0 0014 0" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="12" y1="19" x2="12" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  <line x1="9" y1="22" x2="15" y2="22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                </svg>
+              )}
+            </button>
+          )}
 
           <button
             className="send-btn"
             onClick={() => handleSend()}
-            disabled={(!input.trim() && !pendingImg) || thinking}
+            disabled={(!input.trim() && !pendingImg) || thinking || recording}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
@@ -515,7 +578,7 @@ export default function App() {
           </button>
         </div>
         <p className="disclaimer">
-          MathAI · Rasm yuklang yoki "Tushunmadim" deb yozing
+          MathAI · Upload a photo, speak, or type · Responds in your language
         </p>
       </div>
     </div>
