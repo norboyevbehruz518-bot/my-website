@@ -80,16 +80,34 @@ RESPONSE FORMAT — ONLY THIS JSON:
   ],
   "answer": "Final answer — exact number or expression",
   "tip": "Useful tip or key insight to remember — null if none (in detected language)",
-  "follow_ups": ["question1", "question2", "question3", "question4", "question5"]
+  "follow_ups": ["question1", "question2", "question3", "question4", "question5"],
+  "graph": {
+    "functions": [
+      { "expr": "x^2 - 5*x + 6", "label": "f(x)", "color": "main" },
+      { "expr": "2*x - 5", "label": "f'(x)", "color": "derivative" }
+    ],
+    "xRange": [-1, 6],
+    "yRange": [-2, 8],
+    "points": [
+      { "x": 2, "y": 0, "label": "x=2" },
+      { "x": 3, "y": 0, "label": "x=3" }
+    ],
+    "shadeRegion": null,
+    "annotations": ["Parabola opens upward", "Roots at x=2 and x=3"]
+  }
 }
 
-For follow_ups: generate 4-5 SHORT, context-specific, action-oriented questions/suggestions based on what was just solved. Mix of:
-- A question about a specific step that might be confusing
-- "Give me 5 practice problems on this topic"
-- "Is there another method to solve this?"
-- A question about a related topic or extension
-- A question about common mistakes in this type of problem
-Write them in the SAME language as the user's input. Make them natural and inviting.`;
+GRAPH RULES (critical):
+- Include "graph" with data when the problem involves: plotting f(x), derivatives, integrals, trig/log/exponential functions, polynomials, geometric curves, inequalities, coordinate geometry, area under curve
+- Set "graph": null for: pure arithmetic, number theory, combinatorics, abstract algebra (no plottable function), matrices, word problems without a function to graph
+- "expr" MUST be valid mathjs syntax: always use * for multiplication (write "2*x" NOT "2x"), use ^ for powers, valid functions: sin, cos, tan, asin, acos, atan, sqrt, log, log10, exp, abs, pi, e
+- "color" options: "main" (purple) | "derivative" (green) | "integral" (violet) | "c" (red) | "d" (yellow)
+- xRange/yRange: choose to clearly show the relevant region — roots, peaks, intersections
+- "points": mark key points — roots, vertex, critical points, inflection points, intersections
+- "shadeRegion": ONLY for definite integral problems — {"from": a, "to": b, "label": "∫f dx"} — shades area under first function
+- "annotations": 1-3 key geometric/analytical facts visible in the graph
+
+For follow_ups: generate 4-5 SHORT, context-specific, action-oriented questions/suggestions. Write in the SAME language as the user. Make them natural and inviting.`;
 
 const SIMPLE_SYSTEM = `You are a mathematics tutor who explains things in the SIMPLEST, most accessible way possible.
 Explain like you're talking to a curious 12-year-old — or a friend who hates math.
@@ -123,15 +141,28 @@ RESPONSE FORMAT — ONLY THIS JSON:
   ],
   "answer": "Final answer",
   "remember": "The most important thing to remember — the key to this type of problem (in detected language)",
-  "follow_ups": ["question1", "question2", "question3", "question4"]
+  "follow_ups": ["question1", "question2", "question3", "question4"],
+  "graph": {
+    "functions": [
+      { "expr": "mathjs_expression_using_x", "label": "display name", "color": "main" }
+    ],
+    "xRange": [xMin, xMax],
+    "yRange": [yMin, yMax],
+    "points": [{ "x": val, "y": val, "label": "label" }],
+    "shadeRegion": null,
+    "annotations": ["simple observation about the graph"]
+  }
 }
 
-For follow_ups: 4 short, simple, encouraging questions/suggestions in the user's language. Examples:
-- "Explain it one more time differently"
-- "Give me an easy example of this"
-- "When do we use this formula in real life?"
-- "Give me 3 similar problems to practice"
-Write them naturally in the user's language.`;
+GRAPH RULES:
+- Include "graph" with data when a visual would genuinely help understand the problem (functions, curves, integrals, trig, derivatives, geometry)
+- Set "graph": null for pure arithmetic, counting, matrices, or problems with nothing to plot
+- "expr" uses mathjs syntax: use * for multiplication (NEVER write "2x", always "2*x"), ^ for powers
+- "color": "main" | "derivative" | "integral" | "c" | "d"
+- "shadeRegion": only for integral problems — {"from": a, "to": b, "label": "∫f dx"}
+- Keep it simple — max 2 functions, clearly labeled
+
+For follow_ups: 4 short, simple, encouraging questions in the user's language.`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 function extractJSON(text) {

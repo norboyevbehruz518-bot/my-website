@@ -416,6 +416,48 @@ body {
   max-width: 580px;
 }
 
+/* ── Math Graph ──────────────────────────────────────────────── */
+.mg-wrap {
+  border-radius: 14px; overflow: hidden;
+  background: #07070e;
+  border: 1px solid rgba(124,107,255,.2);
+  box-shadow: 0 4px 24px rgba(0,0,0,.45), 0 0 0 1px rgba(124,107,255,.05);
+  animation: fadeUp .25s ease;
+}
+.mg-header {
+  display: flex; align-items: center; gap: 9px;
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  background: rgba(255,255,255,.02);
+}
+.mg-badge {
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  box-shadow: 0 0 10px rgba(124,107,255,.4);
+}
+.mg-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: rgba(255,255,255,.5);
+}
+.mg-legend { display: flex; gap: 14px; margin-left: 8px; flex-wrap: wrap; }
+.mg-legend-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255,255,255,.5);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+.mg-legend-line { width: 20px; height: 2.5px; border-radius: 2px; flex-shrink: 0; }
+.mg-canvas { display: block; width: 100%; height: 310px; }
+.mg-annots {
+  padding: 9px 16px; border-top: 1px solid rgba(255,255,255,.04);
+  display: flex; flex-wrap: wrap; gap: 7px;
+}
+.mg-annot {
+  font-size: 12px; color: rgba(255,255,255,.45);
+  background: rgba(255,255,255,.04); border-radius: 6px;
+  padding: 4px 10px; border: 1px solid rgba(255,255,255,.06);
+}
+
 /* ── Video Solution Player ───────────────────────────────────── */
 .vs-player {
   border-radius: 16px; overflow: hidden;

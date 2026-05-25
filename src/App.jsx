@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { processInput } from "./mathEngine";
+import MathGraph from "./MathGraph";
 import "./App.css";
 
 // ─── Rotating quotes ─────────────────────────────────────────────────
@@ -533,6 +534,9 @@ function Message({ msg, onReExplain, onDetailedExplain, onFollowUp }) {
                 onFollowUp={onFollowUp}
               />
             </div>
+            {msg.data?.graph?.functions?.length > 0 && (
+              <MathGraph graphData={msg.data.graph} />
+            )}
             {msg.data?.steps?.length > 0 && <VideoSolution data={msg.data} />}
           </>
         )}
