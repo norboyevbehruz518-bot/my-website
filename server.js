@@ -73,8 +73,16 @@ JAVOB FORMATI — FAQAT SHU JSON:
     }
   ],
   "answer": "Yakuniy javob — aniq raqam yoki ifoda",
-  "tip": "Foydali maslahat yoki esda tutish kerak bo'lgan narsa — agar yo'q bo'lsa null"
-}`;
+  "tip": "Foydali maslahat yoki esda tutish kerak bo'lsa, aks holda null",
+  "follow_ups": ["savol1", "savol2", "savol3", "savol4", "savol5"]
+}
+
+follow_ups uchun: hal qilingan masalaga QARAB 4-5 ta HAQIQIY savol/taklif yoz (shablon emas):
+- Qaysi qadam tushunarsiz bo'lishi mumkinligi haqida savol
+- "Bu mavzuda 5 ta mashq masala generatsiya qil" kabi taklif
+- Boshqa yechish usuli haqida savol
+- Bog'liq mavzu yoki kengaytirish haqida savol
+- Ushbu masala turiga xos xatolar yoki qiyinchiliklar haqida savol`;
 
 const SIMPLE_SYSTEM = `Siz matematik masalalarni JUDA SODDA va TUSHUNARLI tushuntiradigan muallimisiz.
 Masalani 6-sinf o'quvchisi tushunganday — xuddi do'stingga tushuntirayotgandek gapirasiz.
@@ -102,8 +110,15 @@ JAVOB FORMATI — FAQAT SHU JSON:
     }
   ],
   "answer": "Yakuniy javob",
-  "remember": "Eng muhim esda tutish kerak bo'lgan narsa — bu masalaning kaliti"
-}`;
+  "remember": "Eng muhim esda tutish kerak bo'lgan narsa",
+  "follow_ups": ["savol1", "savol2", "savol3", "savol4"]
+}
+
+follow_ups: masalaga mos 4 ta HAQIQIY savol/taklif (sodda til bilan):
+- "Yana bir bor tushuntir" turidagi
+- "Shu mavzudan oson misol ber" turidagi
+- "Bu formulani qachon ishlatamiz?" turidagi
+- Kundalik hayot bilan bog'liq savol`;
 
 // ─── Helpers ─────────────────────────────────────────────────────────
 function extractJSON(text) {

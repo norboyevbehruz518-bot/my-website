@@ -2,17 +2,41 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { processInput } from "./mathEngine";
 import "./App.css";
 
-// ─── Constants ───────────────────────────────────────────────────────
-const SUGGESTIONS = [
-  "sin²x + cos²x ni isbotla",
-  "∫x²·eˣ dx ni hisoblang",
-  "x³ - 6x² + 11x - 6 = 0 ni yeching",
-  "C(10,3) va P(5,2) ni hisoblang",
-  "Limit: lim(x→0) sin(x)/x",
-  "Matritsalar: 2x2 teskari matritsa",
-  "Hosila qoidalari",
-  "Standart og'ish formulasi",
+// ─── Rotating quotes ─────────────────────────────────────────────────
+const QUOTES = [
+  { text: "Har qanday muammo —\nyashirin yechimdir", author: null },
+  { text: "Matematika — koinotning\nyashirin tili", author: "Galileo Galilei" },
+  { text: "Hosilalab o'ling,\nintegrallab qayting", author: null },
+  { text: "π dan keyin nima bor?\nHamma narsa.", author: null },
+  { text: "Raqamlar yolg'on gapirmaydi —\nular faqat javob kutishadi", author: null },
+  { text: "Euler, Newton va siz —\nbir savolda birlashadi", author: null },
+  { text: "Cheksizlik —\nboshlanishning boshqacha nomi", author: null },
+  { text: "eⁱᵖ + 1 = 0\nBarcha matematik go'zallik shunda", author: "Euler identiteti" },
 ];
+
+function RotatingQuote() {
+  const [idx, setIdx] = useState(() => Math.floor(Math.random() * QUOTES.length));
+  const [visible, setVisible] = useState(true);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setVisible(false);
+      setTimeout(() => {
+        setIdx((i) => (i + 1) % QUOTES.length);
+        setVisible(true);
+      }, 500);
+    }, 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const q = QUOTES[idx];
+  return (
+    <div className={`rotating-quote ${visible ? "rq-in" : "rq-out"}`}>
+      <div className="rq-text">{q.text}</div>
+      {q.author && <div className="rq-author">— {q.author}</div>}
+    </div>
+  );
+}
 
 const RE_EXPLAIN_TRIGGERS =
   /\b(tushunmadim|tushunmadi|boshqatan|soddaroq|explain|simpler|simple|qayta|yana\s*bir|aniqroq|soddalar?oq|t\.u\.s\.h\.u\.n\.m\.a\.d\.i\.m)\b/i;
@@ -75,7 +99,7 @@ function StepCard({ step, simple }) {
   );
 }
 
-function ClaudeResult({ data, mode, onReExplain, onDetailedExplain }) {
+function ClaudeResult({ data, mode, onReExplain, onDetailedExplain, onFollowUp }) {
   if (!data) return <span className="err-text">Javob olishda xato yuz berdi.</span>;
 
   if (data.raw) {
@@ -137,6 +161,22 @@ function ClaudeResult({ data, mode, onReExplain, onDetailedExplain }) {
         </div>
       )}
 
+      {/* Follow-up suggestions */}
+      {data.follow_ups?.length > 0 && (
+        <div className="follow-ups">
+          <div className="fu-label">Keyingi qadam</div>
+          <div className="fu-chips">
+            {data.follow_ups
+              .filter((f) => typeof f === "string" && f.length > 5)
+              .map((f, i) => (
+                <button key={i} className="fu-chip" onClick={() => onFollowUp(f)}>
+                  {f}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       <div className="action-row">
         {!isSimple && (
           <button className="reexplain-btn" onClick={onReExplain}>
@@ -178,7 +218,7 @@ function LocalResult({ data, onDetailedExplain }) {
 }
 
 // ─── Message ─────────────────────────────────────────────────────────
-function Message({ msg, onReExplain, onDetailedExplain }) {
+function Message({ msg, onReExplain, onDetailedExplain, onFollowUp }) {
   if (msg.role === "user") {
     return (
       <div className="msg-row user-row">
@@ -204,6 +244,7 @@ function Message({ msg, onReExplain, onDetailedExplain }) {
             mode={msg.mode}
             onReExplain={() => onReExplain(msg)}
             onDetailedExplain={() => onDetailedExplain(msg)}
+            onFollowUp={onFollowUp}
           />
         )}
         {msg.type === "local" && (
@@ -319,6 +360,11 @@ export default function App() {
     await callAPI(val, "normal");
   }
 
+  // ── Follow-up chip click ────────────────────────────────────────
+  function handleFollowUp(text) {
+    handleSend(text);
+  }
+
   // ── Re-explain (simple mode) ────────────────────────────────────
   function handleReExplain(msg) {
     setMessages((prev) => [
@@ -375,21 +421,10 @@ export default function App() {
           <div className="welcome">
             <div className="welcome-glow" />
             <div className="welcome-avatar">∑</div>
-            <h1 className="welcome-title">MathAI</h1>
-            <p className="welcome-sub">
-              Rasm yuklang yoki yozing — har qanday matematik masalani
-              qadamba-qadam yechamiz. Tushunmadingizmi? "Soddaroq tushuntir" deng.
-            </p>
-            <div className="chips">
-              {SUGGESTIONS.map((s) => (
-                <button key={s} className="chip" onClick={() => handleSend(s)}>
-                  {s}
-                </button>
-              ))}
-            </div>
+            <RotatingQuote />
             <div className="upload-hint">
               <span className="hint-icon">📷</span>
-              Yoki matematik masala rasmini yuklang
+              Masala rasmini yuklang yoki pastda yozing
             </div>
           </div>
         )}
@@ -402,6 +437,7 @@ export default function App() {
                 msg={m}
                 onReExplain={handleReExplain}
                 onDetailedExplain={handleDetailedExplain}
+                onFollowUp={handleFollowUp}
               />
             ))}
             {thinking && (
@@ -460,7 +496,7 @@ export default function App() {
 
           <input
             className="chat-input"
-            placeholder='Masala yozing, yoki rasm yuklang... "Tushunmadim" — sodda tushuntirish'
+            placeholder="Masalangizni yozing..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKey}
