@@ -190,7 +190,7 @@ async function callClaude(question, mode = 'normal', imageData = null) {
 
   const body = {
     model: 'claude-sonnet-4-6',
-    max_tokens: 4096,
+    max_tokens: 8000,
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content }],
   };

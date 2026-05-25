@@ -349,13 +349,28 @@ const RE_EXPLAIN_TRIGGERS =
   /\b(tushunmadim|tushunmadi|boshqatan|soddaroq|explain\s*(simpler|again|more\s*simply)?|simpler|simple|qayta|yana\s*bir|aniqroq|soddalar?oq|don'?t\s+understand|one\s+more\s+time|again)\b/i;
 
 // ─── API layer ────────────────────────────────────────────────────────
+async function safeFetch(url, options) {
+  let r;
+  try {
+    r = await fetch(url, options);
+  } catch {
+    throw new Error("Cannot reach server — make sure the backend is running (npm run dev)");
+  }
+  let json;
+  try {
+    json = await r.json();
+  } catch {
+    throw new Error(`Server returned an invalid response (HTTP ${r.status}). Backend may have crashed — check the terminal.`);
+  }
+  return json;
+}
+
 async function apiSolve(question, mode = "normal") {
-  const r = await fetch("/api/solve", {
+  const json = await safeFetch("/api/solve", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, mode }),
   });
-  const json = await r.json();
   if (!json.ok) throw new Error(json.error || "Server error");
   return json.data;
 }
@@ -365,8 +380,7 @@ async function apiSolveImage(file, question, mode = "normal") {
   fd.append("image", file);
   fd.append("question", question || "");
   fd.append("mode", mode);
-  const r = await fetch("/api/solve-image", { method: "POST", body: fd });
-  const json = await r.json();
+  const json = await safeFetch("/api/solve-image", { method: "POST", body: fd });
   if (!json.ok) throw new Error(json.error || "Server error");
   return json.data;
 }
