@@ -1,39 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import Anthropic from '@anthropic-ai/sdk';
-import { readFileSync } from 'fs';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// Read session token — supports both standard API key and Claude Code session token (Bearer)
-function getCredentials() {
-  if (process.env.ANTHROPIC_API_KEY) {
-    return { apiKey: process.env.ANTHROPIC_API_KEY, authType: 'apikey' };
-  }
-  const file = process.env.CLAUDE_SESSION_INGRESS_TOKEN_FILE;
-  if (file) {
-    try {
-      const token = readFileSync(file, 'utf-8').trim();
-      if (token) return { token, authType: 'bearer' };
-    } catch {}
-  }
-  return null;
-}
-
-const CREDS = getCredentials();
-if (!CREDS) {
-  console.error('Auth topilmadi. ANTHROPIC_API_KEY env o\'zgaruvchisini o\'rnating.');
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY topilmadi. GEMINI_API_KEY env o\'zgaruvchisini o\'rnating.');
   process.exit(1);
 }
 
-// For Bearer token auth we use fetch directly; for API key we use SDK
-let client = null;
-if (CREDS.authType === 'apikey') {
-  client = new Anthropic({
-    apiKey: CREDS.apiKey,
-    baseURL: process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com',
-  });
-}
-const BASE_URL = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com';
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
@@ -173,51 +149,26 @@ function extractJSON(text) {
   return null;
 }
 
-async function callClaude(question, mode = 'normal', imageData = null) {
+async function callGemini(question, mode = 'normal', imageData = null) {
   const system = mode === 'simple' ? SIMPLE_SYSTEM : NORMAL_SYSTEM;
 
-  const content = [];
-  if (imageData) {
-    content.push({
-      type: 'image',
-      source: { type: 'base64', media_type: imageData.mimeType, data: imageData.base64 },
-    });
-  }
-  content.push({
-    type: 'text',
-    text: question?.trim() || 'Bu masalani yeching. Barcha qadamlarni ko\'rsating.',
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-2.0-flash',
+    systemInstruction: system,
   });
 
-  const body = {
-    model: 'claude-sonnet-4-6',
-    max_tokens: 8000,
-    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content }],
-  };
-
-  let text;
-
-  if (client) {
-    // Standard API key path
-    const response = await client.messages.create(body);
-    text = response.content[0]?.text || '';
-  } else {
-    // Bearer token path (Claude Code session token)
-    const res = await fetch(`${BASE_URL}/v1/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${CREDS.token}`,
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'prompt-caching-2024-07-31',
-      },
-      body: JSON.stringify(body),
-    });
-    const json = await res.json();
-    if (!res.ok) throw new Error(json.error?.message || `API error ${res.status}`);
-    text = json.content?.[0]?.text || '';
+  const parts = [];
+  if (imageData) {
+    parts.push({ inlineData: { mimeType: imageData.mimeType, data: imageData.base64 } });
   }
+  parts.push({ text: question?.trim() || 'Bu masalani yeching. Barcha qadamlarni ko\'rsating.' });
 
+  const result = await model.generateContent({
+    contents: [{ role: 'user', parts }],
+    generationConfig: { maxOutputTokens: 8000 },
+  });
+
+  const text = result.response.text();
   const parsed = extractJSON(text);
   if (!parsed) {
     return { problem: question, topic: 'Matematika', steps: [], answer: text, raw: true };
@@ -230,7 +181,7 @@ app.post('/api/solve', async (req, res) => {
   try {
     const { question, mode = 'normal' } = req.body;
     if (!question?.trim()) return res.status(400).json({ ok: false, error: 'Savol kerak' });
-    const data = await callClaude(question, mode);
+    const data = await callGemini(question, mode);
     res.json({ ok: true, data });
   } catch (e) {
     console.error('solve error:', e.message);
@@ -247,7 +198,7 @@ app.post('/api/solve-image', upload.single('image'), async (req, res) => {
     };
     const question = req.body.question || '';
     const mode = req.body.mode || 'normal';
-    const data = await callClaude(question, mode, imageData);
+    const data = await callGemini(question, mode, imageData);
     res.json({ ok: true, data });
   } catch (e) {
     console.error('solve-image error:', e.message);
