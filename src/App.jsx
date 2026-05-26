@@ -183,14 +183,29 @@ function VideoSolution({ data }) {
       return;
     }
     const utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.87;
-    utt.pitch = 1.05;
+    const lang = navigator.language || "en-US";
+    const langBase = lang.split("-")[0];
+    utt.lang = lang;
+
     const voices = window.speechSynthesis.getVoices();
-    const lang = navigator.language || "en";
+    // Prefer Natural (neural) voices → online voices → any matching language → English fallback
     const voice =
-      voices.find((v) => v.lang.startsWith(lang.split("-")[0]) && !v.localService) ||
-      voices.find((v) => v.lang.startsWith(lang.split("-")[0]));
-    if (voice) utt.voice = voice;
+      voices.find((v) => v.lang.startsWith(langBase) && /natural/i.test(v.name)) ||
+      voices.find((v) => v.lang.startsWith("en") && /natural/i.test(v.name)) ||
+      voices.find((v) => /aria|jenny|guy|zira|david|samantha|karen|moira/i.test(v.name) && !v.localService) ||
+      voices.find((v) => v.lang.startsWith(langBase) && !v.localService) ||
+      voices.find((v) => v.lang.startsWith("en") && !v.localService) ||
+      voices.find((v) => v.lang.startsWith(langBase)) ||
+      voices.find((v) => v.lang.startsWith("en"));
+
+    if (voice) {
+      utt.voice = voice;
+      // Natural voices sound best at normal rate; robotic local voices need slowing
+      utt.rate = /natural/i.test(voice.name) ? 0.95 : 0.82;
+    } else {
+      utt.rate = 0.85;
+    }
+    utt.pitch = 1.0;
     utt.onend = onEnd;
     utt.onerror = onEnd;
     window.speechSynthesis.speak(utt);
