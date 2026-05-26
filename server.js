@@ -194,6 +194,43 @@ app.post('/api/solve', async (req, res) => {
   }
 });
 
+app.post('/api/practice', async (req, res) => {
+  try {
+    const { question, topic } = req.body;
+    if (!question?.trim()) return res.status(400).json({ ok: false, error: 'Question required' });
+
+    const prompt = `Generate exactly 3 practice problems similar to the one below.
+Topic: ${topic || 'Mathematics'}
+Original: ${question}
+
+Rules:
+- Same difficulty level and topic
+- Different numbers and wording
+- Each problem should be solvable step-by-step
+- Write in the same language as the original problem
+
+Return ONLY a valid JSON array of 3 strings. No explanation, no extra text:
+["problem 1", "problem 2", "problem 3"]`;
+
+    const response = await client.chat.completions.create({
+      model: 'llama-3.3-70b-versatile',
+      max_tokens: 400,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const text = response.choices[0]?.message?.content || '';
+    const match = text.match(/\[[\s\S]*?\]/);
+    if (!match) throw new Error('Could not parse practice problems');
+    const problems = JSON.parse(match[0]);
+    if (!Array.isArray(problems) || problems.length === 0) throw new Error('Invalid format');
+
+    res.json({ ok: true, problems: problems.slice(0, 3) });
+  } catch (e) {
+    console.error('practice error:', e.message);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 app.post('/api/solve-image', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, error: 'Rasm kerak' });

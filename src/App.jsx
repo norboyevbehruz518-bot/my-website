@@ -15,6 +15,80 @@ function MathFormula({ tex, block = false }) {
   }
 }
 
+// ─── History ─────────────────────────────────────────────────────────
+const HISTORY_KEY = "mathai-history";
+const MAX_HISTORY = 50;
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function useHistory() {
+  const [history, setHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); }
+    catch { return []; }
+  });
+
+  const addEntry = useCallback((entry) => {
+    setHistory((prev) => {
+      const next = [entry, ...prev.filter((h) => h.id !== entry.id)].slice(0, MAX_HISTORY);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    localStorage.removeItem(HISTORY_KEY);
+    setHistory([]);
+  }, []);
+
+  return { history, addEntry, clearHistory };
+}
+
+function HistoryPanel({ history, onSelect, onClose, onClear }) {
+  return (
+    <div className="history-overlay" onClick={onClose}>
+      <div className="history-panel" onClick={(e) => e.stopPropagation()}>
+        <div className="history-panel-header">
+          <span className="history-panel-title">History</span>
+          <div style={{ display: "flex", gap: 8 }}>
+            {history.length > 0 && (
+              <button className="history-clear-btn" onClick={onClear}>Clear</button>
+            )}
+            <button className="history-close-btn" onClick={onClose}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        {history.length === 0 ? (
+          <div className="history-empty">
+            <div className="history-empty-icon">📋</div>
+            <p>No solved problems yet</p>
+          </div>
+        ) : (
+          <div className="history-list">
+            {history.map((item) => (
+              <button key={item.id} className="history-item" onClick={() => onSelect(item)}>
+                {item.topic && <div className="hi-topic">{item.topic}</div>}
+                <div className="hi-question">{item.question}</div>
+                <div className="hi-time">{timeAgo(item.timestamp)}</div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Rotating quotes ─────────────────────────────────────────────────
 const QUOTES = [
   { text: "Every problem has\na hidden solution", author: null },
@@ -417,11 +491,72 @@ async function apiSolveImage(file, question, mode = "normal") {
   return json.data;
 }
 
+async function apiPractice(question, topic) {
+  const json = await safeFetch("/api/practice", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, topic }),
+  });
+  if (!json.ok) throw new Error(json.error || "Server error");
+  return json.problems;
+}
+
 function tryLocal(text) {
   if (!/^[0-9+\-*/^%().\s]+$/.test(text.trim())) return null;
   const res = processInput(text);
   if (!res || res.type !== "math") return null;
   return res;
+}
+
+// ─── Practice section ────────────────────────────────────────────────
+function PracticeSection({ question, topic, onSelect }) {
+  const [problems, setProblems] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function generate() {
+    setLoading(true);
+    setError(false);
+    try {
+      const probs = await apiPractice(question, topic);
+      setProblems(probs);
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (problems) {
+    return (
+      <div className="practice-section">
+        <div className="practice-label">Practice Problems</div>
+        <div className="practice-list">
+          {problems.map((p, i) => (
+            <button key={i} className="practice-item" onClick={() => onSelect(p)}>
+              <span className="practice-num">{i + 1}</span>
+              <span className="practice-text">{p}</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="practice-arrow">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button className="practice-btn" onClick={generate} disabled={loading}>
+      {loading ? (
+        <><span className="practice-btn-dots"><span /><span /><span /></span> Generating...</>
+      ) : error ? (
+        "Try again"
+      ) : (
+        <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg> Practice similar problems</>
+      )}
+    </button>
+  );
 }
 
 // ─── Text result renderer ─────────────────────────────────────────────
@@ -448,7 +583,7 @@ function StepCard({ step, simple }) {
   );
 }
 
-function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
+function ClaudeResult({ data, mode, question, onReExplain, onFollowUp }) {
   if (!data) return <span className="err-text">Failed to get response.</span>;
 
   if (data.raw) {
@@ -488,6 +623,14 @@ function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
 
       {(data.tip || data.remember) && (
         <p className="tip-text">📌 {data.tip || data.remember}</p>
+      )}
+
+      {question && (
+        <PracticeSection
+          question={question}
+          topic={data.topic}
+          onSelect={onFollowUp}
+        />
       )}
 
       {data.follow_ups?.length > 0 && (
@@ -568,6 +711,7 @@ function Message({ msg, onReExplain, onDetailedExplain, onFollowUp }) {
               <ClaudeResult
                 data={msg.data}
                 mode={msg.mode}
+                question={msg.srcQuestion}
                 onReExplain={() => onReExplain(msg)}
                 onFollowUp={onFollowUp}
               />
@@ -610,8 +754,10 @@ export default function App() {
   const [pendingImg, setPendingImg] = useState(null);
   const [thinking, setThinking] = useState(false);
   const [thinkingText, setThinkingText] = useState("Solving");
+  const [historyOpen, setHistoryOpen] = useState(false);
   const bottomRef = useRef(null);
   const fileRef = useRef(null);
+  const { history, addEntry, clearHistory } = useHistory();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -628,12 +774,20 @@ export default function App() {
         ...prev,
         { role: "ai", type: "claude", data, mode, srcQuestion: question, srcFile: imageFile },
       ]);
+      addEntry({
+        id: Date.now().toString(),
+        question,
+        topic: data.topic || null,
+        timestamp: Date.now(),
+        data,
+        mode,
+      });
     } catch (e) {
       setMessages((prev) => [...prev, { role: "ai", type: "error", text: e.message }]);
     } finally {
       setThinking(false);
     }
-  }, []);
+  }, [addEntry]);
 
   async function handleSend(text, isVoice = false) {
     const val = (text !== undefined ? text : input).trim();
@@ -698,14 +852,43 @@ export default function App() {
 
   const isEmpty = messages.length === 0;
 
+  function handleHistorySelect(item) {
+    setHistoryOpen(false);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text: item.question },
+      { role: "ai", type: "claude", data: item.data, mode: item.mode, srcQuestion: item.question },
+    ]);
+  }
+
   return (
     <div className="app">
+      {historyOpen && (
+        <HistoryPanel
+          history={history}
+          onSelect={handleHistorySelect}
+          onClose={() => setHistoryOpen(false)}
+          onClear={clearHistory}
+        />
+      )}
       <header className="header">
         <div className="logo">
           <span className="logo-icon">∑</span>
           <span className="logo-text">MathAI</span>
         </div>
-        <span className="header-tag">Math AI Agent</span>
+        <div className="header-right">
+          <button
+            className={`history-btn${history.length > 0 ? " has-items" : ""}`}
+            onClick={() => setHistoryOpen(true)}
+            title="History"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            {history.length > 0 && <span className="history-btn-count">{history.length}</span>}
+          </button>
+        </div>
       </header>
 
       <main className="main">
