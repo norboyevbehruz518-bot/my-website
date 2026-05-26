@@ -134,129 +134,88 @@ body {
 }
 
 /* ── Claude result ──────────────────────────────────────────── */
-.claude-result { padding: 16px 18px; display: flex; flex-direction: column; gap: 14px; }
+/* ── Claude result — Gemini-style clean layout ────────────────── */
+.claude-result { padding: 4px 2px; display: flex; flex-direction: column; gap: 0; }
 
-.topic-badge {
-  display: inline-block; padding: 3px 11px; border-radius: 20px;
-  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
-  background: var(--accent-dim); color: var(--accent2);
-  border: 1px solid rgba(167,139,250,.2); align-self: flex-start;
+.topic-label {
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.4px;
+  color: var(--accent2); margin-bottom: 6px;
 }
 .problem-line {
-  font-size: 13.5px; color: var(--muted); font-style: italic;
-  border-left: 2px solid var(--border2); padding-left: 10px;
+  font-size: 14px; color: var(--text); line-height: 1.7;
+  margin: 0 0 20px;
+}
+.simple-idea-text {
+  font-size: 14px; color: var(--muted); line-height: 1.7;
+  margin: 0 0 20px; font-style: italic;
 }
 
-/* Simple idea box */
-.simple-idea-box {
-  background: rgba(251,191,36,.06); border: 1px solid rgba(251,191,36,.2);
-  border-radius: 10px; padding: 12px 14px;
+/* Steps */
+.steps-section { display: flex; flex-direction: column; }
+.step-section { padding: 18px 0 0; }
+.step-heading {
+  font-size: 15.5px; font-weight: 700; color: var(--text);
+  margin: 0 0 12px; line-height: 1.4;
 }
-.idea-label {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 0.8px;
-  color: var(--yellow); text-transform: uppercase; display: block; margin-bottom: 6px;
+.step-work {
+  font-size: 14px; color: var(--muted); line-height: 1.75;
+  margin: 0 0 14px; white-space: pre-wrap;
 }
-.simple-idea-box p { font-size: 13.5px; color: var(--text); line-height: 1.6; }
-
-/* Steps section */
-.steps-section { display: flex; flex-direction: column; gap: 0; }
-.steps-header {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
+.step-formula-block {
+  text-align: center; padding: 14px 0; margin: 4px 0 14px;
+  overflow-x: auto;
 }
-.steps-title-text { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); font-weight: 600; }
-.steps-count { font-size: 11px; color: var(--muted2); background: var(--surface2); padding: 2px 8px; border-radius: 10px; }
-
-/* Step card */
-.step-card {
-  border: 1px solid var(--border); border-radius: 10px;
-  padding: 12px 14px; margin-bottom: 8px;
-  background: var(--surface2);
-  display: flex; flex-direction: column; gap: 7px;
+.step-result-block {
+  text-align: center; padding: 10px 0; margin: 0 0 8px;
+  overflow-x: auto;
 }
-.step-card-head { display: flex; align-items: center; gap: 9px; }
-.step-num {
-  min-width: 22px; height: 22px; border-radius: 7px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  color: #fff; font-size: 11px; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
+.step-why-text {
+  font-size: 13.5px; color: #fbbf24; line-height: 1.6;
+  margin: 6px 0 12px;
 }
-.step-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
-
-.step-formula {
-  font-family: "SF Mono", "Fira Code", monospace;
-  font-size: 13px; color: var(--accent2);
-  background: rgba(124,107,255,.08); border: 1px solid rgba(124,107,255,.15);
-  padding: 5px 10px; border-radius: 7px; white-space: pre-wrap;
-}
-.step-work { font-size: 13px; color: var(--muted); line-height: 1.6; white-space: pre-wrap; }
-.step-result {
-  font-size: 13.5px; font-weight: 600; color: var(--green);
-  display: flex; align-items: center; gap: 6px;
-}
-.arrow { color: var(--muted2); font-size: 12px; }
-.step-why {
-  font-size: 12.5px; color: #fbbf24; line-height: 1.5;
-  background: rgba(251,191,36,.06); border-radius: 7px;
-  padding: 6px 10px; display: flex; gap: 6px; align-items: flex-start;
-}
-.why-icon { flex-shrink: 0; }
+.step-divider { height: 1px; background: var(--border); margin-top: 18px; }
 
 /* Final answer */
-.final-answer-box {
-  background: linear-gradient(135deg, rgba(124,107,255,.12), rgba(167,139,250,.08));
-  border: 1px solid rgba(124,107,255,.25);
-  border-radius: 12px; padding: 14px 18px;
+.final-answer-block { padding: 20px 0 8px; }
+.final-answer-label {
+  font-size: 14px; color: var(--muted); margin: 0 0 10px;
 }
-.ans-label { font-size: 10.5px; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); font-weight: 600; display: block; margin-bottom: 6px; }
-.ans-val {
-  font-size: 24px; font-weight: 800; letter-spacing: -0.4px;
-  background: linear-gradient(135deg, var(--accent), var(--accent2));
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  background-clip: text; white-space: pre-wrap; word-break: break-word;
+.final-answer-math {
+  text-align: center; padding: 10px 0;
+  font-size: 18px; overflow-x: auto;
 }
 
 /* Tip */
-.tip-box {
-  display: flex; gap: 8px; align-items: flex-start;
-  background: rgba(52,211,153,.06); border: 1px solid rgba(52,211,153,.18);
-  border-radius: 10px; padding: 10px 12px;
-  font-size: 13px; color: var(--muted); line-height: 1.5;
+.tip-text {
+  font-size: 13.5px; color: var(--muted); line-height: 1.6;
+  margin: 12px 0 4px; padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
-.tip-icon { flex-shrink: 0; }
 
 /* Action row */
-.action-row { display: flex; align-items: center; gap: 10px; padding-top: 2px; }
+.action-row { display: flex; align-items: center; gap: 10px; padding-top: 16px; }
 .reexplain-btn {
-  font-size: 12.5px; padding: 7px 14px; border-radius: 20px;
-  border: 1px solid var(--border2); background: var(--surface3);
-  color: var(--text); cursor: pointer; transition: all .18s; font-family: inherit;
+  font-size: 13px; padding: 7px 16px; border-radius: 20px;
+  border: 1px solid var(--border2); background: transparent;
+  color: var(--muted); cursor: pointer; transition: all .18s; font-family: inherit;
 }
 .reexplain-btn:hover { border-color: var(--accent); color: var(--accent2); background: var(--accent-dim); }
 .simple-badge {
-  font-size: 11.5px; color: var(--green);
-  background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.2);
-  padding: 4px 12px; border-radius: 20px;
+  font-size: 12px; color: var(--green);
 }
 
 /* ── Follow-ups ─────────────────────────────────────────────── */
-.follow-ups {
-  border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px;
-}
-.fu-label {
-  font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px;
-  color: var(--muted2); font-weight: 600; margin-bottom: 9px;
-}
-.fu-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.follow-ups { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 8px; }
+.fu-chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .fu-chip {
-  font-size: 12.5px; padding: 6px 13px; border-radius: 18px;
+  font-size: 13px; padding: 7px 14px; border-radius: 20px;
   border: 1px solid var(--border2); background: transparent;
   color: var(--muted); cursor: pointer; transition: all .18s;
   font-family: inherit; text-align: left; line-height: 1.4;
 }
 .fu-chip:hover {
   border-color: var(--accent); color: var(--accent2);
-  background: var(--accent-dim); transform: translateY(-1px);
+  background: var(--accent-dim);
 }
 
 /* ── Local result ────────────────────────────────────────────── */

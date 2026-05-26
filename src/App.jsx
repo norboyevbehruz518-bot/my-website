@@ -427,19 +427,23 @@ function tryLocal(text) {
 // ─── Text result renderer ─────────────────────────────────────────────
 function StepCard({ step, simple }) {
   return (
-    <div className="step-card">
-      <div className="step-card-head">
-        <span className="step-num">{step.n}</span>
-        <span className="step-title">{step.title}</span>
-      </div>
-      {step.formula && <div className="step-formula"><MathFormula tex={step.formula} block /></div>}
-      <div className="step-work">{step.work}</div>
+    <div className="step-section">
+      <h3 className="step-heading">{step.n}. {step.title}</h3>
+      <p className="step-work">{step.work}</p>
+      {step.formula && (
+        <div className="step-formula-block">
+          <MathFormula tex={step.formula} block />
+        </div>
+      )}
       {step.result && (
-        <div className="step-result"><span className="arrow">→</span> <MathFormula tex={step.result} /></div>
+        <div className="step-result-block">
+          <MathFormula tex={step.result} block />
+        </div>
       )}
       {simple && step.why && (
-        <div className="step-why"><span className="why-icon">💡</span> {step.why}</div>
+        <p className="step-why-text">💡 {step.why}</p>
       )}
+      <div className="step-divider" />
     </div>
   );
 }
@@ -449,11 +453,10 @@ function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
 
   if (data.raw) {
     return (
-      <div className="raw-answer">
-        <div className="res-tag">Answer</div>
-        <p>{data.answer}</p>
+      <div className="claude-result">
+        <p className="step-work">{data.answer}</p>
         {onReExplain && mode !== "simple" && (
-          <button className="reexplain-btn" onClick={onReExplain}>🔄 Explain Simpler</button>
+          <button className="reexplain-btn" onClick={onReExplain}>Explain Simpler</button>
         )}
       </div>
     );
@@ -463,43 +466,32 @@ function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
 
   return (
     <div className="claude-result">
-      {data.topic && <div className="topic-badge">{data.topic}</div>}
-      {data.problem && <div className="problem-line">{data.problem}</div>}
+      {data.topic && <div className="topic-label">{data.topic}</div>}
+      {data.problem && <p className="problem-line">{data.problem}</p>}
 
       {isSimple && data.simple_idea && (
-        <div className="simple-idea-box">
-          <span className="idea-label">Core Idea</span>
-          <p>{data.simple_idea}</p>
-        </div>
+        <p className="simple-idea-text">{data.simple_idea}</p>
       )}
 
       {data.steps?.length > 0 && (
         <div className="steps-section">
-          <div className="steps-header">
-            <span className="steps-title-text">{isSimple ? "Simple Steps" : "Solution Steps"}</span>
-            <span className="steps-count">{data.steps.length} steps</span>
-          </div>
           {data.steps.map((s) => <StepCard key={s.n} step={s} simple={isSimple} />)}
         </div>
       )}
 
       {data.answer && (
-        <div className="final-answer-box">
-          <span className="ans-label">Final Answer</span>
-          <div className="ans-val"><MathFormula tex={data.answer} block /></div>
+        <div className="final-answer-block">
+          <p className="final-answer-label">Therefore, the answer is:</p>
+          <div className="final-answer-math"><MathFormula tex={data.answer} block /></div>
         </div>
       )}
 
       {(data.tip || data.remember) && (
-        <div className="tip-box">
-          <span className="tip-icon">📌</span>
-          <span>{data.tip || data.remember}</span>
-        </div>
+        <p className="tip-text">📌 {data.tip || data.remember}</p>
       )}
 
       {data.follow_ups?.length > 0 && (
         <div className="follow-ups">
-          <div className="fu-label">Explore More</div>
           <div className="fu-chips">
             {data.follow_ups
               .filter((f) => typeof f === "string" && f.length > 5)
@@ -512,9 +504,9 @@ function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
 
       <div className="action-row">
         {!isSimple && (
-          <button className="reexplain-btn" onClick={onReExplain}>🔄 Explain Simpler</button>
+          <button className="reexplain-btn" onClick={onReExplain}>Explain Simpler</button>
         )}
-        {isSimple && <div className="simple-badge">✓ Simplified mode</div>}
+        {isSimple && <div className="simple-badge">✓ Simplified</div>}
       </div>
     </div>
   );
