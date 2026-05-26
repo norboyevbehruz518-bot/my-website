@@ -1,15 +1,15 @@
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Groq from 'groq-sdk';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-if (!GEMINI_API_KEY) {
-  console.error('GEMINI_API_KEY topilmadi. GEMINI_API_KEY env o\'zgaruvchisini o\'rnating.');
+const GROQ_API_KEY = process.env.GROQ_API_KEY;
+if (!GROQ_API_KEY) {
+  console.error('GROQ_API_KEY topilmadi. GROQ_API_KEY env o\'zgaruvchisini o\'rnating.');
   process.exit(1);
 }
 
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const client = new Groq({ apiKey: GROQ_API_KEY });
 
 const app = express();
 app.use(cors({ origin: ['http://localhost:5173', 'http://127.0.0.1:5173'] }));
@@ -149,26 +149,31 @@ function extractJSON(text) {
   return null;
 }
 
-async function callGemini(question, mode = 'normal', imageData = null) {
+async function callGroq(question, mode = 'normal', imageData = null) {
   const system = mode === 'simple' ? SIMPLE_SYSTEM : NORMAL_SYSTEM;
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-2.0-flash',
-    systemInstruction: system,
-  });
-
-  const parts = [];
+  let userContent;
   if (imageData) {
-    parts.push({ inlineData: { mimeType: imageData.mimeType, data: imageData.base64 } });
+    userContent = [
+      { type: 'image_url', image_url: { url: `data:${imageData.mimeType};base64,${imageData.base64}` } },
+      { type: 'text', text: question?.trim() || 'Bu masalani yeching. Barcha qadamlarni ko\'rsating.' },
+    ];
+  } else {
+    userContent = question?.trim() || 'Bu masalani yeching. Barcha qadamlarni ko\'rsating.';
   }
-  parts.push({ text: question?.trim() || 'Bu masalani yeching. Barcha qadamlarni ko\'rsating.' });
 
-  const result = await model.generateContent({
-    contents: [{ role: 'user', parts }],
-    generationConfig: { maxOutputTokens: 8000 },
+  const model = imageData ? 'meta-llama/llama-4-scout-17b-16e-instruct' : 'llama-3.3-70b-versatile';
+
+  const response = await client.chat.completions.create({
+    model,
+    max_tokens: 8000,
+    messages: [
+      { role: 'system', content: system },
+      { role: 'user', content: userContent },
+    ],
   });
 
-  const text = result.response.text();
+  const text = response.choices[0]?.message?.content || '';
   const parsed = extractJSON(text);
   if (!parsed) {
     return { problem: question, topic: 'Matematika', steps: [], answer: text, raw: true };
@@ -181,7 +186,7 @@ app.post('/api/solve', async (req, res) => {
   try {
     const { question, mode = 'normal' } = req.body;
     if (!question?.trim()) return res.status(400).json({ ok: false, error: 'Savol kerak' });
-    const data = await callGemini(question, mode);
+    const data = await callGroq(question, mode);
     res.json({ ok: true, data });
   } catch (e) {
     console.error('solve error:', e.message);
@@ -198,7 +203,7 @@ app.post('/api/solve-image', upload.single('image'), async (req, res) => {
     };
     const question = req.body.question || '';
     const mode = req.body.mode || 'normal';
-    const data = await callGemini(question, mode, imageData);
+    const data = await callGroq(question, mode, imageData);
     res.json({ ok: true, data });
   } catch (e) {
     console.error('solve-image error:', e.message);
