@@ -183,28 +183,33 @@ function VideoSolution({ data }) {
       return;
     }
     const utt = new SpeechSynthesisUtterance(text);
-    const lang = navigator.language || "en-US";
-    const langBase = lang.split("-")[0];
-    utt.lang = lang;
-
     const voices = window.speechSynthesis.getVoices();
-    // Prefer Natural (neural) voices → online voices → any matching language → English fallback
-    const voice =
-      voices.find((v) => v.lang.startsWith(langBase) && /natural/i.test(v.name)) ||
-      voices.find((v) => v.lang.startsWith("en") && /natural/i.test(v.name)) ||
-      voices.find((v) => /aria|jenny|guy|zira|david|samantha|karen|moira/i.test(v.name) && !v.localService) ||
-      voices.find((v) => v.lang.startsWith(langBase) && !v.localService) ||
-      voices.find((v) => v.lang.startsWith("en") && !v.localService) ||
-      voices.find((v) => v.lang.startsWith(langBase)) ||
-      voices.find((v) => v.lang.startsWith("en"));
 
-    if (voice) {
-      utt.voice = voice;
-      // Natural voices sound best at normal rate; robotic local voices need slowing
-      utt.rate = /natural/i.test(voice.name) ? 0.95 : 0.82;
+    // Detect Russian text by Cyrillic characters
+    const isRussian = /[Ѐ-ӿ]/.test(text);
+
+    let voice;
+    if (isRussian) {
+      // Use Russian voice for Cyrillic text
+      voice =
+        voices.find((v) => v.lang.startsWith("ru") && /natural/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith("ru") && !v.localService) ||
+        voices.find((v) => v.lang.startsWith("ru"));
+      utt.lang = "ru-RU";
     } else {
-      utt.rate = 0.85;
+      // For all other languages: use Microsoft David (clear English) as primary
+      voice =
+        voices.find((v) => /microsoft david/i.test(v.name)) ||
+        voices.find((v) => /david/i.test(v.name) && v.lang.startsWith("en")) ||
+        voices.find((v) => v.lang.startsWith("en") && /natural/i.test(v.name)) ||
+        voices.find((v) => /aria|jenny|guy|zira|samantha|karen/i.test(v.name)) ||
+        voices.find((v) => v.lang.startsWith("en") && !v.localService) ||
+        voices.find((v) => v.lang.startsWith("en"));
+      utt.lang = "en-US";
     }
+
+    if (voice) utt.voice = voice;
+    utt.rate = isRussian ? 0.82 : 0.88;
     utt.pitch = 1.0;
     utt.onend = onEnd;
     utt.onerror = onEnd;
