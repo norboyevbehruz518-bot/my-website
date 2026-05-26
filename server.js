@@ -49,12 +49,12 @@ RESPONSE FORMAT — ONLY THIS JSON:
     {
       "n": 1,
       "title": "Step name (short and clear, in detected language)",
-      "formula": "Formula or expression used — null if none",
+      "formula": "Formula as LaTeX string (no $ delimiters) — e.g. c^2 = a^2 + b^2 or \\frac{d}{dx}[x^n] = nx^{n-1} — null if none",
       "work": "What is being done in this step and WHY — full explanation in detected language",
-      "result": "Intermediate result of this step"
+      "result": "Intermediate result as LaTeX string (no $ delimiters) — e.g. x = \\frac{5}{2}"
     }
   ],
-  "answer": "Final answer — exact number or expression",
+  "answer": "Final answer as LaTeX string (no $ delimiters) — e.g. x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}",
   "tip": "Useful tip or key insight to remember — null if none (in detected language)",
   "follow_ups": ["question1", "question2", "question3", "question4", "question5"],
   "graph": {

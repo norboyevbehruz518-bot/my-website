@@ -1,7 +1,19 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { processInput } from "./mathEngine";
 import MathGraph from "./MathGraph";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 import "./App.css";
+
+function MathFormula({ tex, block = false }) {
+  if (!tex) return null;
+  try {
+    const html = katex.renderToString(tex, { throwOnError: false, displayMode: block });
+    return <span dangerouslySetInnerHTML={{ __html: html }} />;
+  } catch {
+    return <span>{tex}</span>;
+  }
+}
 
 // ─── Rotating quotes ─────────────────────────────────────────────────
 const QUOTES = [
@@ -126,12 +138,12 @@ function SlideContent({ slide }) {
         <span className="vs-step-num-badge">{slide.n}</span>
         <span className="vs-step-title">{slide.title}</span>
       </div>
-      {slide.formula && <div className="vs-step-formula">{slide.formula}</div>}
+      {slide.formula && <div className="vs-step-formula"><MathFormula tex={slide.formula} block /></div>}
       <div className="vs-step-work">{slide.work}</div>
       {slide.result && (
         <div className="vs-step-result">
           <span className="vs-arrow">→</span>
-          <span className="vs-result-val">{slide.result}</span>
+          <span className="vs-result-val"><MathFormula tex={slide.result} /></span>
         </div>
       )}
       {slide.why && <div className="vs-step-why">💡 {slide.why}</div>}
@@ -420,10 +432,10 @@ function StepCard({ step, simple }) {
         <span className="step-num">{step.n}</span>
         <span className="step-title">{step.title}</span>
       </div>
-      {step.formula && <div className="step-formula">{step.formula}</div>}
+      {step.formula && <div className="step-formula"><MathFormula tex={step.formula} block /></div>}
       <div className="step-work">{step.work}</div>
       {step.result && (
-        <div className="step-result"><span className="arrow">→</span> {step.result}</div>
+        <div className="step-result"><span className="arrow">→</span> <MathFormula tex={step.result} /></div>
       )}
       {simple && step.why && (
         <div className="step-why"><span className="why-icon">💡</span> {step.why}</div>
@@ -474,7 +486,7 @@ function ClaudeResult({ data, mode, onReExplain, onFollowUp }) {
       {data.answer && (
         <div className="final-answer-box">
           <span className="ans-label">Final Answer</span>
-          <div className="ans-val">{data.answer}</div>
+          <div className="ans-val"><MathFormula tex={data.answer} block /></div>
         </div>
       )}
 
